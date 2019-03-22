@@ -23,13 +23,13 @@ import matlab.engine
 
 # Save the location of the matlab variables needed for the NORSE tests
 # Laptop loaction: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\examples\\'
-# Gateway location: '/pfs/work/g2solasz/NORSE/examples/'
+# Gateway location: '/pfs/work/g2solasz/git/NORSE/examples/'
 
 # Load the matlab variables into Python in numpy array form
 # This results in  three separate arrays
-f = testReadIn.load('outputAdvanced.mat', '/pfs/work/g2solasz/NORSE/examples/', 'f')
-extPBig = testReadIn.load('externalPBig.mat', '/pfs/work/g2solasz/NORSE/examples/', 'extPBig')
-extXiBig = testReadIn.load('externalXiBig.mat', '/pfs/work/g2solasz/NORSE/examples/', 'extXiBig')
+f = testReadIn.load('outputAdvanced.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'f')
+extPBig = testReadIn.load('externalPBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extPBig')
+extXiBig = testReadIn.load('externalXiBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extXiBig')
 
 # Create a list from the external data variables
 inputData = [f, extPBig, extXiBig]
@@ -130,12 +130,12 @@ eng = matlab.engine.start_matlab()
 
 # Save the location of the  matlab scripts necessary for the run
 # Laptop: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\src'
-# Gateway: '/pfs/work/g2solasz/NORSE/src'
-# Gateway: '/pfs/work/g2solasz/REPA/NORSE-actor'
+# Gateway: '/pfs/work/g2solasz/git/NORSE/src'
+# Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
 
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/NORSE/src')
-eng.addpath('/pfs/work/g2solasz/REPA/NORSE-actor')
+eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE_actor')
 
 # Initialize an empty NORSE object
 o = eng.NORSE()
