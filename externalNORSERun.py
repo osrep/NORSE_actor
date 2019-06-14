@@ -13,6 +13,8 @@ import rangeCheck
 import dimensionCheck
 import pGridMode
 import matlabDouble
+import EHat
+import CoulombLogarithm
 import numpy as np
 import matlab.engine
 
@@ -104,12 +106,13 @@ pGridParameter = float(pGrid[1])
 
 # Set constant physical parameters and numerical parameters
 # TODO implement the calculation of EHat
+# TODO the second variable int the readIn.convert operation is the radial coordinate (?)
 # Constant physical parameters
-T = readIn.convert(coreprof0[0].te.value, 0)         		# eV
-n = readIn.convert(coreprof0[0].ne.value, 0)         		# m^{-3}
-EHat = 6         						# E/E_c
-Z = readIn.convert(coreprof0[0].profiles1d.zeff.value, 0)       # Z_eff
-B = readIn.convert(coreprof0[0].toroid_field.b0)                # T
+T = readIn.convert(coreprof0[0].te.value, 0)         									# eV
+n = readIn.convert(coreprof0[0].ne.value, 0)         									# m^{-3}
+EHat = EHat.calculate(n,CoulombLogarithm.calculate(n,T),readIn.convert(coreprof0[0].profiles1d.eparallel.value, 0))	# E/E_c
+Z = readIn.convert(coreprof0[0].profiles1d.zeff.value, 0)       							# Z_eff
+B = readIn.convert(coreprof0[0].toroid_field.b0)                							# T
 
 # Numerical parameters. Some has been taken from SimpleNORSERun.m to get sensible results
 # nP = 175       # these have been determined earlier
@@ -165,7 +168,7 @@ eng.setfield(o, 'initialDistribution', 4)
 # Run the calculation
 #####################
 
-# Convert the numpy arrays into matlab doubles so the PerformCalculation method can use it
+# Convert the numpy arrays into matlab doubles so the PerformCalculation method can use them
 f1 = matlabDouble.convert(inputData[0])
 extPBig1 = matlabDouble.convert(inputData[1])
 extXiBig1 = matlabDouble.convert(inputData[2])
@@ -190,7 +193,7 @@ eng.NORSEPlot(o, 'HeatSink', nargout=0)
 # Continuing calculation with modified parameters
 #################################################
 
-eng.setfield(o, 'EHat', 0.5*EHat)            # TODO It seems EHat is a time dependent parameter (and others as well)
+eng.setfield(o, 'EHat', 0.5*float(EHat))     # TODO It seems EHat is a time dependent parameter (and others as well)
 eng.setfield(o, 'tMax', 2*tMax)              # This is the total time!
 eng.setfield(o, 'nSaveSteps', 2*nSaveSteps)  # This is the total number of save steps!
 eng.ContinueCalculation(o, nargout=0)
