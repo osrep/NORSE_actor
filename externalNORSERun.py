@@ -164,6 +164,9 @@ eng.setfield(o, 'pGridParameter', pGridParameter)
 # to 4, corresponding to external distribution input
 eng.setfield(o, 'initialDistribution', 4)
 
+# Run NORSE in silent mode so no information is printed
+eng.setfield(o, 'silent', True)
+
 #####################
 # Run the calculation
 #####################
