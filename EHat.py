@@ -27,6 +27,3 @@ def calculate(electronDensity, CoulombLogarithm, electricField):
     x = electricField/Ec
 
     return x
-
-
-print(calculate(4.625e19, 17.081637801722938, 0.007))

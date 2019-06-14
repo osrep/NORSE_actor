@@ -17,6 +17,3 @@ def calculate(electronDensity, electronTemperature):
     x = 14.9-0.5*np.log(electronDensity*1e-20)+np.log(electronTemperature*1e-3)       # [na]
 
     return x
-
-
-print(calculate(4.625e19, 6026))
