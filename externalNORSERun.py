@@ -182,35 +182,11 @@ input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, '
 # Perform calculation
 eng.PerformCalculation(o, input_structure, nargout=0)
 
-'''
-######################
-# Visualize the result
-######################
-# TODO Plotting is optional, for now only to see if the program works fine. This part will be omitted from the ETS.
-
-eng.NORSEPlot(o, 'Dist2D', nargout=0)
-eng.NORSEPlot(o, 'ParameterEvolution', nargout=0)
-eng.NORSEPlot(o, 'HeatSink', nargout=0)
-'''
-#################################################
-# Continuing calculation with modified parameters
-#################################################
-
+# Continue calculation if wanted
 eng.setfield(o, 'EHat', 0.5*float(EHat))     # TODO It seems EHat is a time dependent parameter (and others as well)
 eng.setfield(o, 'tMax', 2*tMax)              # This is the total time!
 eng.setfield(o, 'nSaveSteps', 2*nSaveSteps)  # This is the total number of save steps!
 eng.ContinueCalculation(o, nargout=0)
-'''
-###########################
-# Visualize the end results
-###########################
-# TODO More optional plotting, which will be omitted from the ETS.
-
-eng.NORSEPlot(o, 'DistVsTime', nargout=0)
-eng.NORSEPlot(o, 'Moments', nargout=0)
-eng.NORSEPlot(o, 'ParameterEvolution', nargout=0)
-eng.NORSEPlot(o, 'HeatSink', nargout=0)
-'''
 
 #####################
 # Writing output data
