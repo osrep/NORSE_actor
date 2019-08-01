@@ -147,7 +147,7 @@ o = eng.NORSE()
 eng.setfield(o, 'nSaveSteps', nSaveSteps)
 eng.setfield(o, 'includeHeatSink', 1)			# TODO we will use something different in ETS
 eng.setfield(o, 'enforceStrictHeatConservation', 1)
-eng.setfield(o, 'show1DTimeEvolution', 1)               # TODO we will not need this feature in ETS
+eng.setfield(o, 'show1DTimeEvolution', 0)               # TODO we will not need this feature in ETS
 
 # Setting the parameters to NORSE object
 # All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
@@ -185,3 +185,8 @@ eng.PerformCalculation(o, input_structure, nargout=0)
 #####################
 # Writing output data
 #####################
+
+# Take the lastcolumn of o.f. This is the distribution function on the p-xi grid for the last time step.
+temp = eng.extractDistribution(o)
+npTemp = np.array(temp)
+print(npTemp)
