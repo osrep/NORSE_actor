@@ -201,15 +201,15 @@ temp = np.array(eng.extractDistribution(o))
 shot = 28906
 run = 43
 
-ntime = 1
+ntime = 2
 
 itmp = ual.itm(shot, run)
 itmp.create()
 
-itmp.equilibriumArray.resize(ntime)
+itmp.distributionArray.resize(ntime)
 for i in range (ntime):
-	itmp.equilibriumArray.array[i].eqgeometry.source = 'example'
-	itmp.equilibriumArray.array[i].time = i
+	itmp.distributionArray.array[i].datainfo.dataprovider = 'Soma'	#does not work at the moment
+	itmp.distributionArray.array[i].time = i
 
-itmp.equilibriumArray.put()
+itmp.distributionArray.put()
 itmp.close()
