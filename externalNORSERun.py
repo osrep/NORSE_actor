@@ -18,6 +18,11 @@ import CoulombLogarithm
 import numpy as np
 import matlab.engine
 
+import pickle
+import ual
+from time import asctime
+import copy
+
 
 #############################
 # Load the external variables
@@ -187,6 +192,24 @@ eng.PerformCalculation(o, input_structure, nargout=0)
 #####################
 
 # Take the lastcolumn of o.f. This is the distribution function on the p-xi grid for the last time step.
-temp = eng.extractDistribution(o)
-npTemp = np.array(temp)
-print(npTemp)
+temp = np.array(eng.extractDistribution(o))
+# print(temp)
+
+# Write data to given CPO
+# TODO this is just a test yet, I would like to see, if writing works
+# Give run and shot numbers
+shot = 28906
+run = 43
+
+ntime = 1
+
+itmp = ual.itm(shot, run)
+itmp.create()
+
+itmp.equilibriumArray.resize(ntime)
+for i in range (ntime):
+	itmp.equilibriumArray.array[i].eqgeometry.source = 'example'
+	itmp.equilibriumArray.array[i].time = i
+
+itmp.equilibriumArray.put()
+itmp.close()
