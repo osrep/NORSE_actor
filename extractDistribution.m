@@ -13,10 +13,10 @@
 %%% 
 %%% 
 
-function double = extractDistribution(object)
+function double = extractDistribution(NORSEobject)
 
     % take the last column of the NORSE distribuion field o.f
-    double = object.f(:,end);
+    double = NORSEobject.f(:,end);
     
 
 end
