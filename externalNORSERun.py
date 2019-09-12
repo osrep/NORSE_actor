@@ -18,6 +18,7 @@ import CoulombLogarithm
 import numpy as np
 import matlab.engine
 
+import itertools
 import pickle
 import ual
 from time import asctime
@@ -191,25 +192,67 @@ eng.PerformCalculation(o, input_structure, nargout=0)
 # Writing output data
 #####################
 
-# Take the lastcolumn of o.f. This is the distribution function on the p-xi grid for the last time step.
-temp = np.array(eng.extractDistribution(o))
-# print(temp)
+# Take the data from the NORSE object, wchich will go into the CPO.
+distribution = np.array(eng.extractDistribution(o)).tolist()
+pBig = np.array(eng.extractPBig(o)).tolist()
+xiBig = np.array(eng.extractXiBig(o)).tolist()
+
+# flatten the data to python list, so it can be given to the CPO
+distribution = list(itertools.chain.from_iterable(distribution))
+pBig = list(itertools.chain.from_iterable(pBig))
+xiBig = list(itertools.chain.from_iterable(xiBig))
 
 # Write data to given CPO
-# TODO this is just a test yet, I would like to see, if writing works
+
 # Give run and shot numbers
 shot = 28906
-run = 43
+run = 44
 
-ntime = 2
+ntime = 1	# TODO only calculate for one time step at the moment
+nRho = 0	# TODO only calculate for one rho value at the moment
 
 itmp = ual.itm(shot, run)
 itmp.create()
 
 itmp.distributionArray.resize(ntime)
-for i in range (ntime):
-	itmp.distributionArray.array[i].datainfo.dataprovider = 'Soma'	#does not work at the moment
-	itmp.distributionArray.array[i].time = i
 
+for i in range (ntime):
+	
+	# initialize the CPO
+	itmp.distributionArray.array[i].distri_vec.resize(1)
+	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion.resize(1)
+	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces.resize(3)
+	
+	# fill the coordinates
+	for j in range (0,3):
+		itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects.resize(1)
+		itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype.resize(1,1)
+		
+		# p coordinate
+		if j == 0: 
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 123
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = pBig
+			
+		# xi coordinate
+		elif j == 1:
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 126
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = xiBig
+			
+		# rho coordinate
+		else:
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize(nRho,1,1,1)
+			# 107 is the coordinate convention for rho_tor (see https://portal.eufus.eu/documentation/ITM/html/itm_enum_types__coordinate_identifier.html#itm_enum_types__coordinate_identifier). Might have to change this later.
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 107
+			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = 0.5
+			
+	# Write the distribution to the CPO
+	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize((nP-1)*nXi+1)
+	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = distribution
+		
+	# Write the time
+	itmp.distributionArray.array[i].time = i
+		
 itmp.distributionArray.put()
 itmp.close()
