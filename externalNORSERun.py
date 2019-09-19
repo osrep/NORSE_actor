@@ -25,16 +25,13 @@ from time import asctime
 import copy
 
 
-#############################
 # Load the external variables
-#############################
 
 # Save the location of the matlab variables needed for the NORSE tests
 # Laptop loaction: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\examples\\'
 # Gateway location: '/pfs/work/g2solasz/git/NORSE/examples/'
 
 # Load the matlab variables into Python in numpy array form
-# This results in  three separate arrays
 f = testReadIn.load('outputAdvanced.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'f')
 extPBig = testReadIn.load('externalPBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extPBig')
 extXiBig = testReadIn.load('externalXiBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extXiBig')
@@ -42,11 +39,8 @@ extXiBig = testReadIn.load('externalXiBig.mat', '/pfs/work/g2solasz/git/NORSE/ex
 # Create a list from the external data variables
 inputData = [f, extPBig, extXiBig]
 
-##################################################
 # Put some sanity checks on the external variables
-##################################################
 
-########################
 # Check on element range
 
 # TODO Should check the external distribution somehow. Checking for negative values does not work.
@@ -58,16 +52,12 @@ rangeCheck.within(inputData[1], 'min', 0)
 rangeCheck.within(inputData[2], 'min', -1)
 rangeCheck.within(inputData[2], 'max', 1)
 
-#####################
 # Check on dimensions
 
 # Check if any of the external data has different dimensions
 dimensionCheck.isIdentical(inputData[0], inputData[1], inputData[2])
 
-#############################################################
 # Extract numerical parameters necessary to recreate the grid
-#############################################################
-
 # pMax, nP, and nXi parameters are needed to recreate the NORSE grid
 
 # pMax is the maximum of the extPBig vector
@@ -85,16 +75,12 @@ temp = np.where(inputData[2] == inputData[2].max())
 # nP is the number of maximums+1 in extXiBig
 nP = len(temp[0])+1
 
-#################################################################
 # Check if the dimensions of the external distribution is correct
-#################################################################
 
 if len(inputData[0]) != ((nP-1)*nXi+1):
     raise Exception('The dimensions of the external distribution are incorrect')
 
-####################################################################
 # Extract pGridMode, pGridParameter and xiGridMode from grid vectors
-####################################################################
 
 # pGridMode
 pGrid = pGridMode.extract(inputData[1], nP)
@@ -104,15 +90,13 @@ pGridParameter = float(pGrid[1])
 # xiGridMode
 # TODO find a way to implement a similar method as in pGridMode
 
-###########################
 # Resolution and parameters
-###########################
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
 # of this code. The section name is taken from there.
 
 # Set constant physical parameters and numerical parameters
-# TODO implement the calculation of EHat
-# TODO the second variable int the readIn.convert operation is the radial coordinate (?)
+# TODO the second variable int the readIn.convert operation is the radial coordinate in the CPOs. Using this, the calculation can be done through all radial points.
+
 # Constant physical parameters
 T = readIn.convert(coreprof0[0].te.value, 0)         									# eV
 n = readIn.convert(coreprof0[0].ne.value, 0)         									# m^{-3}
@@ -130,9 +114,7 @@ dt = 9e-5
 tMax = 0.018
 nSaveSteps = 30  # 0, save the distribution at all timesteps
 
-##############
 # Set up NORSE
-##############
 
 # Start a Matlab engine to be able to call Matlab scripts
 eng = matlab.engine.start_matlab()
@@ -143,7 +125,7 @@ eng = matlab.engine.start_matlab()
 # Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
 
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE_hoppe/NORSE/src')
 eng.addpath('/pfs/work/g2solasz/git/NORSE_actor')
 
 # Initialize an empty NORSE object
@@ -153,7 +135,8 @@ o = eng.NORSE()
 eng.setfield(o, 'nSaveSteps', nSaveSteps)
 eng.setfield(o, 'includeHeatSink', 1)			# TODO we will use something different in ETS
 eng.setfield(o, 'enforceStrictHeatConservation', 1)
-eng.setfield(o, 'show1DTimeEvolution', 0)               # TODO we will not need this feature in ETS
+eng.setfield(o, 'show1DTimeEvolution', 0)
+eng.setfield(o, 'conservativeParticleSource',1)
 
 # Setting the parameters to NORSE object
 # All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
@@ -173,9 +156,7 @@ eng.setfield(o, 'initialDistribution', 4)
 # Run NORSE in silent mode so no information is printed
 eng.setfield(o, 'silent', True)
 
-#####################
 # Run the calculation
-#####################
 
 # Convert the numpy arrays into matlab doubles so the PerformCalculation method can use them
 f1 = matlabDouble.convert(inputData[0])
@@ -188,9 +169,7 @@ input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, '
 # Perform calculation
 eng.PerformCalculation(o, input_structure, nargout=0)
 
-#####################
-# Writing output data
-#####################
+# Writing output data to CPOs
 
 # Take the data from the NORSE object, wchich will go into the CPO.
 distribution = np.array(eng.extractDistribution(o)).tolist()
@@ -205,11 +184,11 @@ xiBig = list(itertools.chain.from_iterable(xiBig))
 # Write data to given CPO
 
 # Give run and shot numbers
-shot = 28906
-run = 44
+shot = parameters["shotnumber"]
+run = parameters["run_out"]
 
 ntime = 1	# TODO only calculate for one time step at the moment
-nRho = 0	# TODO only calculate for one rho value at the moment
+nRho = 0	# TODO only calculate for one rho value at the moment. This will be the same as the range in the for loop for physical 		  parameters above.
 
 itmp = ual.itm(shot, run)
 itmp.create()
