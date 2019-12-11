@@ -95,7 +95,6 @@ pGridParameter = float(pGrid[1])
 # of this code. The section name is taken from there.
 
 # Set constant physical parameters and numerical parameters
-# TODO the second variable int the readIn.convert operation is the radial coordinate in the CPOs. Using this, the calculation can be done through all radial points.             							# T
 
 # Numerical parameters. Some has been taken from SimpleNORSERun.m to get sensible results
 # nP = 175       # these have been determined earlier
@@ -163,6 +162,7 @@ T_arr = np.zeros(rho_size)
 n_arr = np.zeros(rho_size)
 EHat_arr = np.zeros(rho_size)
 Z_arr = np.zeros(rho_size)
+B_arr = np.zeros(rho_size)
 rhoTor_arr = np.zeros(rho_size)
 
 # Constant physical parameters
@@ -174,8 +174,7 @@ for i in range(rho_size):
 	EHat_arr[i] = EHat.calculate(n_arr[i],CoulombLogarithm.calculate(n_arr[i],T_arr [i]),readIn.convert(coreprof0[0].profiles1d.eparallel.value, i))			# E/E_c
 	Z_arr[i] = readIn.convert(coreprof0[0].profiles1d.zeff.value, i)			# Z_eff
 	rhoTor_arr[i] = readIn.convert(coreprof0[0].rho_tor, i)					# m
-
-B = readIn.convert(coreprof0[0].toroid_field.b0)						# T
+	B_arr[i] = readIn.convert(coreprof0[0].toroid_field.b0)						# T
 
 # Initialize variables for storing calculation results
 totalDistribution = []
@@ -185,7 +184,7 @@ finalXiBig = []
 for i in range (rho_size):
 
 	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
-	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(T_arr[i]), float(n_arr[i]), float(Z_arr[i]), float(EHat_arr[i]), float(B), nargout=0)
+	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(T_arr[i]), float(n_arr[i]), float(Z_arr[i]), float(EHat_arr[i]), float(B_arr[i]), nargout=0)
 
 	# Perform calculation
 	eng.PerformCalculation(o, input_structure, nargout=0)
