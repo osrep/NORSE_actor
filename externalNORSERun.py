@@ -95,14 +95,6 @@ pGridParameter = float(pGrid[1])
 # of this code. The section name is taken from there.
 
 # Set constant physical parameters and numerical parameters
-# TODO the second variable int the readIn.convert operation is the radial coordinate in the CPOs. Using this, the calculation can be done through all radial points.
-
-# Constant physical parameters
-T = readIn.convert(coreprof0[0].te.value, 0)         									# eV
-n = readIn.convert(coreprof0[0].ne.value, 0)         									# m^{-3}
-EHat = EHat.calculate(n,CoulombLogarithm.calculate(n,T),readIn.convert(coreprof0[0].profiles1d.eparallel.value, 0))	# E/E_c
-Z = readIn.convert(coreprof0[0].profiles1d.zeff.value, 0)       							# Z_eff
-B = readIn.convert(coreprof0[0].toroid_field.b0)                							# T
 
 # Numerical parameters. Some has been taken from SimpleNORSERun.m to get sensible results
 # nP = 175       # these have been determined earlier
@@ -139,9 +131,6 @@ eng.setfield(o, 'show1DTimeEvolution', 0)
 eng.setfield(o, 'conservativeParticleSource',1)
 
 # Setting the parameters to NORSE object
-# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
-eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(T), float(n),
-                  float(Z), float(EHat), float(B), nargout=0)
 
 # Set the grid parameters calculated earlier
 eng.setfield(o, 'pGridMode', pGridMode)
@@ -156,8 +145,6 @@ eng.setfield(o, 'initialDistribution', 4)
 # Run NORSE in silent mode so no information is printed
 eng.setfield(o, 'silent', True)
 
-# Run the calculation
-
 # Convert the numpy arrays into matlab doubles so the PerformCalculation method can use them
 f1 = matlabDouble.convert(inputData[0])
 extPBig1 = matlabDouble.convert(inputData[1])
@@ -166,72 +153,121 @@ extXiBig1 = matlabDouble.convert(inputData[2])
 # Create a matlab structure from the input data given in Matlab doubles
 input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
 
-# Perform calculation
-eng.PerformCalculation(o, input_structure, nargout=0)
+# Numerical parameters
+# Get the number of rho coordinates
+rho_size = size(coreprof0[0].rho_tor_norm)
 
-# Writing output data to CPOs
+# Initialize arrays for physical parameters
+T_arr = np.zeros(rho_size)
+n_arr = np.zeros(rho_size)
+EHat_arr = np.zeros(rho_size)
+Z_arr = np.zeros(rho_size)
+B_arr = np.zeros(rho_size)
+rhoTor_arr = np.zeros(rho_size)
 
-# Take the data from the NORSE object, wchich will go into the CPO.
-distribution = np.array(eng.extractDistribution(o)).tolist()
-pBig = np.array(eng.extractPBig(o)).tolist()
-xiBig = np.array(eng.extractXiBig(o)).tolist()
+# Constant physical parameters
+for i in range(rho_size):
+	
+	# Fill physics arrays with values from CPOs
+	T_arr[i] = readIn.convert(coreprof0[0].te.value, i)					# eV
+	n_arr[i] = readIn.convert(coreprof0[0].ne.value, i)					# m^{-3}
+	EHat_arr[i] = EHat.calculate(n_arr[i],CoulombLogarithm.calculate(n_arr[i],T_arr [i]),readIn.convert(coreprof0[0].profiles1d.eparallel.value, i))			# E/E_c
+	Z_arr[i] = readIn.convert(coreprof0[0].profiles1d.zeff.value, i)			# Z_eff
+	rhoTor_arr[i] = readIn.convert(coreprof0[0].rho_tor, i)					# m
+	B_arr[i] = readIn.convert(coreprof0[0].toroid_field.b0)						# T
 
-# flatten the data to python list, so it can be given to the CPO
-distribution = list(itertools.chain.from_iterable(distribution))
-pBig = list(itertools.chain.from_iterable(pBig))
-xiBig = list(itertools.chain.from_iterable(xiBig))
+# Initialize variables for storing calculation results
+totalDistribution = []
+finalPBig = []
+finalXiBig = []
 
-# Write data to given CPO
+for i in range (rho_size):
 
-# Give run and shot numbers
+	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
+	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(T_arr[i]), float(n_arr[i]), float(Z_arr[i]), float(EHat_arr[i]), float(B_arr[i]), nargout=0)
+
+	# Perform calculation
+	eng.PerformCalculation(o, input_structure, nargout=0)
+
+	# Take the data from the NORSE object, which will go into the CPO.
+	distribution = np.array(eng.extractDistribution(o)).tolist()
+	pBig = np.array(eng.extractPBig(o)).tolist()
+	xiBig = np.array(eng.extractXiBig(o)).tolist()
+
+	# flatten the data to python list, so it can be given to the CPO
+	distribution = list(itertools.chain.from_iterable(distribution))
+	pBig = list(itertools.chain.from_iterable(pBig))
+	xiBig = list(itertools.chain.from_iterable(xiBig))
+	
+	# Save coordinates from first calculation to write to CPO
+	if i == 0:
+		finalPBig = pBig
+		finalXiBig = xiBig
+	
+	# Check if the grids are the same for the later calculations as the saved grid
+	else:
+		if not  finalPBig == pBig:
+			raise Exception('The p grid is not the same for rho index {} as for the first index.'.format(i+1))
+			
+		elif not finalXiBig == xiBig:
+			raise Exception('The xi grid is not the same for rho index {} as for the first index.'.format(i+1))
+	
+	totalDistribution += distribution
+
+# Convert rho coordinates to list so it can be given to CPOs
+rhoTor = rhoTor_arr.tolist()
+
+# Write calculation results to CPO
+# Give run and shot numbers needed for CPO writing
 shot = parameters["shotnumber"]
 run = parameters["run_out"]
 
-ntime = 1	# TODO only calculate for one time step at the moment
-nRho = 0	# TODO only calculate for one rho value at the moment. This will be the same as the range in the for loop for physical 		  parameters above.
-
+# Initialize CPO structure
 itmp = ual.itm(shot, run)
 itmp.create()
 
-itmp.distributionArray.resize(ntime)
+# Set numerical parameters for CPO writing
+nCoord = 3	# number of different coordinates used (p, xi, rho_tor)
+timeIn = 0	# TODO input time (will be taken from input CPO)
+dt = 0.001	# TODO time step (will be taken from workflow parameter) (not sure if this will be added, the input time might already 		contain the time step for ETS)
 
-for i in range (ntime):
-	
-	# initialize the CPO
-	itmp.distributionArray.array[i].distri_vec.resize(1)
-	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion.resize(1)
-	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces.resize(3)
-	
-	# fill the coordinates
-	for j in range (0,3):
-		itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects.resize(1)
-		itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype.resize(1,1)
-		
-		# p coordinate
-		if j == 0: 
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 123
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = pBig
+# initialize the CPO
+itmp.distributionArray.resize(1)
+itmp.distributionArray.array[0].distri_vec.resize(1)
+itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion.resize(1)
+itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces.resize(nCoord)
+
+# fill the coordinates
+for i in range (nCoord):
+	itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects.resize(1)
+	itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype.resize(1,1)
+
+	# p coordinate
+	if i == 0: 
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 123
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalPBig
 			
-		# xi coordinate
-		elif j == 1:
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 126
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = xiBig
+	# xi coordinate
+	elif i == 1:
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 126
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalXiBig
 			
-		# rho coordinate
-		else:
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo.resize(nRho,1,1,1)
-			# 107 is the coordinate convention for rho_tor (see https://portal.eufus.eu/documentation/ITM/html/itm_enum_types__coordinate_identifier.html#itm_enum_types__coordinate_identifier). Might have to change this later.
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].coordtype[0,0] = 107
-			itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].grid.spaces[j].objects[0].geo[:,0,0,0] = 0.5
+	# rho coordinate
+	else:
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize(rho_size,1,1,1)
+		# 107 is the coordinate convention for rho_tor (see https://portal.eufus.eu/documentation/ITM/html/itm_enum_types__coordinate_identifier.html#itm_enum_types__coordinate_identifier). Might have to change this later.
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 107
+		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = rhoTor
 			
-	# Write the distribution to the CPO
-	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize((nP-1)*nXi+1)
-	itmp.distributionArray.array[i].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = distribution
+# Write the distribution to the CPO
+itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize(((nP-1)*nXi+1)*rho_size)
+itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = totalDistribution
 		
-	# Write the time
-	itmp.distributionArray.array[i].time = i
-		
+# Write the time
+itmp.distributionArray.array[0].time = timeIn + dt
+
+# put CPO
 itmp.distributionArray.put()
 itmp.close()
