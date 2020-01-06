@@ -1,4 +1,4 @@
-# EHat.py
+# EHat_calc.py
 # 30/01/2019
 # Written by Soma Olasz
 #
