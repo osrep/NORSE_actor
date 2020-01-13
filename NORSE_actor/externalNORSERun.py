@@ -1,10 +1,9 @@
-# externalNORSERun.py
-# 20/12/2018
-# Written by Soma Olasz based on externalNORSERun.m
-#
-# This file is created to test the possibility of running NORSE code from Python by implementing the commands from the
-# example file externalNORSERun.m in Python language. The example file can be found in the GitHub project for NORSE,
-# in issue #4, dedicated for the modification of NORSE code to accept numerical distribution.
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 20 12:00:00 2018
+
+@author: Soma Olasz
+"""
 
 # Import necessary modules and Python scripts.
 import readIn
@@ -13,17 +12,17 @@ import rangeCheck
 import dimensionCheck
 import pGridMode
 import matlabDouble
-import EHat
+import EHat_calc
 import CoulombLogarithm
+import hdf5Write
+
 import numpy as np
 import matlab.engine
-
 import itertools
 import pickle
 import ual
 from time import asctime
 import copy
-
 
 # Load the external variables
 
@@ -118,7 +117,7 @@ eng = matlab.engine.start_matlab()
 
 # Add the location of NORSE files to the Matlab path
 eng.addpath('/pfs/work/g2solasz/git/NORSE_hoppe/NORSE/src')
-eng.addpath('/pfs/work/g2solasz/git/NORSE_actor')
+eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/NORSE_actor')
 
 # Initialize an empty NORSE object
 o = eng.NORSE()
@@ -158,33 +157,50 @@ input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, '
 rho_size = size(coreprof0[0].rho_tor_norm)
 
 # Initialize arrays for physical parameters
-T_arr = np.zeros(rho_size)
-n_arr = np.zeros(rho_size)
-EHat_arr = np.zeros(rho_size)
-Z_arr = np.zeros(rho_size)
-B_arr = np.zeros(rho_size)
+temperature = np.zeros(rho_size)
+density = np.zeros(rho_size)
+EHat = np.zeros(rho_size)
+Z_eff = np.zeros(rho_size)
+B0 = np.zeros(rho_size)
 rhoTor_arr = np.zeros(rho_size)
+E_parallel = np.zeros(rho_size)
+E_critical = np.zeros(rho_size)
+time = readIn.convert(coreprof0[0].time)
+
+# Define physical constants
+c = 3e8
+e = 1.6e-19
 
 # Constant physical parameters
 for i in range(rho_size):
 	
 	# Fill physics arrays with values from CPOs
-	T_arr[i] = readIn.convert(coreprof0[0].te.value, i)					# eV
-	n_arr[i] = readIn.convert(coreprof0[0].ne.value, i)					# m^{-3}
-	EHat_arr[i] = EHat.calculate(n_arr[i],CoulombLogarithm.calculate(n_arr[i],T_arr [i]),readIn.convert(coreprof0[0].profiles1d.eparallel.value, i))			# E/E_c
-	Z_arr[i] = readIn.convert(coreprof0[0].profiles1d.zeff.value, i)			# Z_eff
+	temperature[i] = readIn.convert(coreprof0[0].te.value, i)				# eV
+	density[i] = readIn.convert(coreprof0[0].ne.value, i)					# m^{-3}
+	EHat[i] = EHat_calc.calculate(density[i],CoulombLogarithm.calculate(density[i],temperature [i]),readIn.convert(coreprof0[0].profiles1d.eparallel.value, i))			# E/E_c
+	Z_eff[i] = readIn.convert(coreprof0[0].profiles1d.zeff.value, i)			# Z_eff
 	rhoTor_arr[i] = readIn.convert(coreprof0[0].rho_tor, i)					# m
-	B_arr[i] = readIn.convert(coreprof0[0].toroid_field.b0)						# T
+	B0[i] = readIn.convert(coreprof0[0].toroid_field.b0)					# T
+	E_parallel[i] = readIn.convert(coreprof0[0].profiles1d.eparallel.value, i)		# V/m
+	E_critical[i] = E_parallel[i]/EHat[i]
 
 # Initialize variables for storing calculation results
-totalDistribution = []
-finalPBig = []
-finalXiBig = []
+totalDistribution = []		# data storage for CPOs
+finalPBig = []			# data storage for CPOs
+finalXiBig = []			# data storage for CPOs
+growth_rate = []
+runaway_density = []
+runaway_current = []
+
+# Initialize numpy arrays to store distribution and coordinates for hdf5 writing
+Distribution = np.zeros((1,rho_size,(nP-1)*nXi+1))
+PBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
+XiBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 
 for i in range (rho_size):
 
 	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
-	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(T_arr[i]), float(n_arr[i]), float(Z_arr[i]), float(EHat_arr[i]), float(B_arr[i]), nargout=0)
+	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(temperature[i]), float(density[i]), float(Z_eff[i]), float(EHat[i]), float(B0[i]), nargout=0)
 
 	# Perform calculation
 	eng.PerformCalculation(o, input_structure, nargout=0)
@@ -193,11 +209,17 @@ for i in range (rho_size):
 	distribution = np.array(eng.extractDistribution(o)).tolist()
 	pBig = np.array(eng.extractPBig(o)).tolist()
 	xiBig = np.array(eng.extractXiBig(o)).tolist()
-
+	growthRate = density[i]*eng.extractGrowthRate(o)
+	runawayDensity = density[i]*eng.extractFraction(o)
+	runawayCurrent = runawayDensity * e * c * np.sign(E_parallel[i])
+	
 	# flatten the data to python list, so it can be given to the CPO
 	distribution = list(itertools.chain.from_iterable(distribution))
 	pBig = list(itertools.chain.from_iterable(pBig))
 	xiBig = list(itertools.chain.from_iterable(xiBig))
+	growth_rate.append(growthRate)
+	runaway_density.append(runawayDensity)
+	runaway_current.append(runawayCurrent)
 	
 	# Save coordinates from first calculation to write to CPO
 	if i == 0:
@@ -213,6 +235,16 @@ for i in range (rho_size):
 			raise Exception('The xi grid is not the same for rho index {} as for the first index.'.format(i+1))
 	
 	totalDistribution += distribution
+	
+	# Convert data lists to numpy arrays
+	distribution = np.array(distribution)
+	pBig = np.array(pBig)
+	xiBig = np.array(xiBig)
+	
+	# Save distribution and coordinates to global vairables
+	Distribution[0,i,:] = distribution
+	PBig[0,i,:] = pBig
+	XiBig[0,i,:] = xiBig
 
 # Convert rho coordinates to list so it can be given to CPOs
 rhoTor = rhoTor_arr.tolist()
@@ -271,3 +303,45 @@ itmp.distributionArray.array[0].time = timeIn + dt
 # put CPO
 itmp.distributionArray.put()
 itmp.close()
+
+# Reshape data for hdf5 writing
+temperature = temperature.reshape(1,rho_size)
+density = density.reshape(1,rho_size)
+EHat = EHat.reshape(1,rho_size)
+Z_eff = Z_eff.reshape(1,rho_size)
+B0 = B0.reshape(1,rho_size)
+rhoTor = rhoTor_arr.reshape(1,rho_size)
+E_parallel = E_parallel.reshape(1,rho_size)
+E_critical = E_critical.reshape(1,rho_size)
+time = time.reshape(1,1)
+growth_rate = np.array(growth_rate).reshape(1,rho_size)
+runaway_density = np.array(runaway_density).reshape(1,rho_size)
+runaway_current = np.array(runaway_current).reshape(1,rho_size)
+Distribution = np.array([np.transpose(Distribution[0,:,:])])
+PBig = np.array([np.transpose(PBig[0,:,:])])
+XiBig = np.array([np.transpose(XiBig[0,:,:])])
+
+# Create dictionaries of the hdf5 input parameters
+temperature = {"Name": 'temperature', "Data": temperature}
+density = {"Name": 'density', "Data":  density}
+EHat = {"Name": 'EHat', "Data":  EHat}
+Z_eff = {"Name": 'Z_eff', "Data":  Z_eff}
+B0 = {"Name": 'B0', "Data":  B0}
+rhoTor = {"Name": 'rhoTor', "Data":  rhoTor}
+E_parallel = {"Name": 'E_parallel', "Data":  E_parallel}
+E_critical = {"Name": 'E_critical', "Data":  E_critical}
+time = {"Name": 'time', "Data":  time}
+growth_rate = {"Name": 'growth_rate', "Data":  growth_rate}
+runaway_density = {"Name": 'runaway_density', "Data":  runaway_density}
+runaway_current = {"Name": 'runaway_current', "Data":  runaway_current}
+Distribution = {"Name": 'Distribution', "Data":  Distribution}
+PBig = {"Name": 'PBig', "Data":  PBig}
+XiBig = {"Name": 'XiBig', "Data":  XiBig}
+
+# Put dictionaries into a list
+hdf5_param_data = [temperature, density, EHat, Z_eff, B0, rhoTor, E_parallel, E_critical, time, growth_rate, runaway_density, runaway_current]
+hdf5_dist_data = [Distribution, PBig, XiBig]
+
+# Write data to hdf5 file
+hdf5Write.write_params(shot, run, hdf5_param_data)
+hdf5Write.write_dist(shot, run, hdf5_dist_data)
