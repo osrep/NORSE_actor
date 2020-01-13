@@ -15,7 +15,6 @@ import matlabDouble
 import EHat_calc
 import CoulombLogarithm
 import hdf5Write
-import dictionary
 
 import numpy as np
 import matlab.engine
@@ -24,13 +23,6 @@ import pickle
 import ual
 from time import asctime
 import copy
-
-import h5py
-
-# Define function to get the name of a numpy array as string
-def get_name(obj, namespace):
-	return [name for name in namespace if namespace[name] is obj][0]
-
 
 # Load the external variables
 
@@ -249,9 +241,6 @@ for i in range (rho_size):
 	pBig = np.array(pBig)
 	xiBig = np.array(xiBig)
 	
-	print(pBig.shape)
-	print(xiBig.shape)
-	
 	# Save distribution and coordinates to global vairables
 	Distribution[0,i,:] = distribution
 	PBig[0,i,:] = pBig
@@ -333,21 +322,21 @@ PBig = np.array([np.transpose(PBig[0,:,:])])
 XiBig = np.array([np.transpose(XiBig[0,:,:])])
 
 # Create dictionaries of the hdf5 input parameters
-temperature = dictionary.create(get_name(temperature, globals()), temperature)
-density = dictionary.create(get_name(density, globals()), density)
-EHat = dictionary.create(get_name(EHat, globals()), EHat)
-Z_eff = dictionary.create(get_name(Z_eff, globals()), Z_eff)
-B0 = dictionary.create(get_name(B0, globals()), B0)
-rhoTor = dictionary.create(get_name(rhoTor, globals()), rhoTor)
-E_parallel = dictionary.create(get_name(E_parallel, globals()), E_parallel)
-E_critical = dictionary.create(get_name(E_critical, globals()), E_critical)
-time = dictionary.create(get_name(time, globals()), time)
-growth_rate = dictionary.create(get_name(growth_rate, globals()), growth_rate)
-runaway_density = dictionary.create(get_name(runaway_density, globals()), runaway_density)
-runaway_current = dictionary.create(get_name(runaway_current, globals()), runaway_current)
-Distribution = dictionary.create(get_name(Distribution, globals()), Distribution)
-PBig = dictionary.create(get_name(PBig, globals()), PBig)
-XiBig = dictionary.create(get_name(XiBig, globals()), XiBig)
+temperature = {"Name": 'temperature', "Data": temperature}
+density = {"Name": 'density', "Data":  density}
+EHat = {"Name": 'EHat', "Data":  EHat}
+Z_eff = {"Name": 'Z_eff', "Data":  Z_eff}
+B0 = {"Name": 'B0', "Data":  B0}
+rhoTor = {"Name": 'rhoTor', "Data":  rhoTor}
+E_parallel = {"Name": 'E_parallel', "Data":  E_parallel}
+E_critical = {"Name": 'E_critical', "Data":  E_critical}
+time = {"Name": 'time', "Data":  time}
+growth_rate = {"Name": 'growth_rate', "Data":  growth_rate}
+runaway_density = {"Name": 'runaway_density', "Data":  runaway_density}
+runaway_current = {"Name": 'runaway_current', "Data":  runaway_current}
+Distribution = {"Name": 'Distribution', "Data":  Distribution}
+PBig = {"Name": 'PBig', "Data":  PBig}
+XiBig = {"Name": 'XiBig', "Data":  XiBig}
 
 # Put dictionaries into a list
 hdf5_param_data = [temperature, density, EHat, Z_eff, B0, rhoTor, E_parallel, E_critical, time, growth_rate, runaway_density, runaway_current]
