@@ -255,8 +255,7 @@ shot = parameters["shotnumber"]
 run = parameters["run_out"]
 
 # Initialize CPO structure
-itmp = ual.itm(shot, run)
-itmp.create()
+distribution0 = ual.distribution.distributionArray()
 
 # Set numerical parameters for CPO writing
 nCoord = 3	# number of different coordinates used (p, xi, rho_tor)
@@ -264,45 +263,41 @@ timeIn = 0	# TODO input time (will be taken from input CPO)
 dt = 0.001	# TODO time step (will be taken from workflow parameter) (not sure if this will be added, the input time might already 		contain the time step for ETS)
 
 # initialize the CPO
-itmp.distributionArray.resize(1)
-itmp.distributionArray.array[0].distri_vec.resize(1)
-itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion.resize(1)
-itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces.resize(nCoord)
+distribution0.resize(1)
+distribution0.array[0].distri_vec.resize(1)
+distribution0.array[0].distri_vec[0].dist_func.f_expansion.resize(1)
+distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces.resize(nCoord)
 
 # fill the coordinates
 for i in range (nCoord):
-	itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects.resize(1)
-	itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype.resize(1,1)
+	distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects.resize(1)
+	distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype.resize(1,1)
 
 	# p coordinate
 	if i == 0: 
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 123
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalPBig
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 123
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalPBig
 			
 	# xi coordinate
 	elif i == 1:
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 126
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalXiBig
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize((nP-1)*nXi+1,1,1,1)
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 126
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = finalXiBig
 			
 	# rho coordinate
 	else:
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize(rho_size,1,1,1)
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo.resize(rho_size,1,1,1)
 		# 107 is the coordinate convention for rho_tor (see https://portal.eufus.eu/documentation/ITM/html/itm_enum_types__coordinate_identifier.html#itm_enum_types__coordinate_identifier). Might have to change this later.
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 107
-		itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = rhoTor
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].coordtype[0,0] = 107
+		distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[i].objects[0].geo[:,0,0,0] = rhoTor
 			
 # Write the distribution to the CPO
-itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize(((nP-1)*nXi+1)*rho_size)
-itmp.distributionArray.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = totalDistribution
+distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize(((nP-1)*nXi+1)*rho_size)
+distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = totalDistribution
 		
 # Write the time
-itmp.distributionArray.array[0].time = timeIn + dt
-
-# put CPO
-itmp.distributionArray.put()
-itmp.close()
+distribution0.array[0].time = timeIn + dt
 
 # Reshape data for hdf5 writing
 temperature = temperature.reshape(1,rho_size)
