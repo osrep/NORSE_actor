@@ -181,13 +181,13 @@ e = 1.6e-19
 for i in range(rho_size):
 	
 	# Fill physics arrays with values from CPOs
-	temperature[i] = coreprof0[0].te.value[0]						# eV
-	density[i] = coreprof0[0].ne.value[0]						# m^{-3}
-	EHat[i] = EHat_calc.calculate(density[i],CoulombLogarithm.calculate(density[i],temperature[i]), coreprof0[0].profiles1d.eparallel.value[0])					# E/E_c	
-	Z_eff[i] = coreprof0[0].profiles1d.zeff.value[0]					# Z_eff
-	rhoTor_arr[i] = coreprof0[0].rho_tor[0]						# m
+	temperature[i] = coreprof0[0].te.value[i]						# eV
+	density[i] = coreprof0[0].ne.value[i]						# m^{-3}
+	EHat[i] = EHat_calc.calculate(density[i],CoulombLogarithm.calculate(density[i],temperature[i]), coreprof0[0].profiles1d.eparallel.value[i])					# E/E_c	
+	Z_eff[i] = coreprof0[0].profiles1d.zeff.value[i]					# Z_eff
+	rhoTor_arr[i] = coreprof0[0].rho_tor[i]						# m
 	B0[i] = coreprof0[0].toroid_field.b0						# T
-	E_parallel[i] = coreprof0[0].profiles1d.eparallel.value[0]				# V/m
+	E_parallel[i] = coreprof0[0].profiles1d.eparallel.value[i]				# V/m
 	E_critical[i] = E_parallel[i]/EHat[i]
 
 # Initialize variables for storing calculation results
