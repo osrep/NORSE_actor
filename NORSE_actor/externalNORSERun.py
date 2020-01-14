@@ -313,6 +313,12 @@ for i in range (nCoord):
 # Write the distribution to the CPO
 distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar.resize(((nP-1)*nXi+1)*rho_size)
 distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = totalDistribution
+
+distribution0.array[0].distri_vec[0].profiles_1d.state.dens.resize(rho_size)
+distribution0.array[0].distri_vec[0].profiles_1d.state.dens[:] = runaway_density
+		
+distribution0.array[0].distri_vec[0].profiles_1d.state.current.resize(rho_size)
+distribution0.array[0].distri_vec[0].profiles_1d.state.dens[:] = runaway_current
 		
 # Write the time
 distribution0.array[0].time = time
