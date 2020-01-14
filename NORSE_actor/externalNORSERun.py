@@ -6,8 +6,6 @@ Created on Thu Dec 20 12:00:00 2018
 """
 
 # Import necessary modules and Python scripts.
-import readIn
-import testReadIn
 import rangeCheck
 import dimensionCheck
 import pGridMode
@@ -30,64 +28,73 @@ import copy
 # Laptop loaction: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\examples\\'
 # Gateway location: '/pfs/work/g2solasz/git/NORSE/examples/'
 
-# Load the matlab variables into Python in numpy array form
-f = testReadIn.load('outputAdvanced.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'f')
-extPBig = testReadIn.load('externalPBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extPBig')
-extXiBig = testReadIn.load('externalXiBig.mat', '/pfs/work/g2solasz/git/NORSE/examples/', 'extXiBig')
+# Test input distribution
+try:
+	fBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:]
+	extPBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[0].objects[0].geo[:,0,0,0]
+	extXiBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[1].objects[0].geo[:,0,0,0]
+	ext_rho_tor = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[2].objects[0].geo[:,0,0,0]
+	
+	externalSwitch = 1
+	
+except IndexError:
+	
+	externalSwitch = 0
 
-# Create a list from the external data variables
-inputData = [f, extPBig, extXiBig]
+if externalSwitch == 1:
 
-# Put some sanity checks on the external variables
+	ext_rho_size = ext_rho_tor.size
 
-# Check on element range
+	# Extract numerical parameters necessary to recreate the grid
+	# pMax, nP, and nXi parameters are needed to recreate the NORSE grid
 
-# TODO Should check the external distribution somehow. Checking for negative values does not work.
+	# pMax is the maximum of the extPBig vector
+	extPMax = max(extPBig)
 
-# Check if the values of extPBig are all positive
-rangeCheck.within(inputData[1], 'min', 0)
+	# create a temporary array from the locations of the maximum values of the external pBig
+	temp = np.where(extPBig == extPBig.max())
 
-# Check if the values of extXiBig are between -1 and 1
-rangeCheck.within(inputData[2], 'min', -1)
-rangeCheck.within(inputData[2], 'max', 1)
+	# nXi is the number of maximums in extPBig
+	nXi = len(temp[0])
 
-# Check on dimensions
+	# create a temporary array from the locations of the maximum values of the external xiBig
+	temp = np.where(extXiBig == extXiBig.max())
 
-# Check if any of the external data has different dimensions
-dimensionCheck.isIdentical(inputData[0], inputData[1], inputData[2])
+	# nP is the number of maximums+1 in extXiBig
+	nP = len(temp[0])+1
 
-# Extract numerical parameters necessary to recreate the grid
-# pMax, nP, and nXi parameters are needed to recreate the NORSE grid
+	# Define the variable (nP-1)*nXi+1
+	coord_size = (nP-1)*nXi+1
 
-# pMax is the maximum of the extPBig vector
-extPMax = max(inputData[1])
+	# Check if the dimensions of the external distribution is correct
+	if len(fBig)/ext_rho_size != coord_size:
+		raise Exception('The dimensions of the external distribution are incorrect')
 
-# create a temporary array from the locations of the maximum values of the external pBig
-temp = np.where(inputData[1] == inputData[1].max())
+	# Extract pGridMode, pGridParameter and xiGridMode from grid vectors
 
-# nXi is the number of maximums in extPBig
-nXi = len(temp[0])
+	# pGridMode
+	pGrid = pGridMode.extract(extPBig, nP)
+	pGridMode = pGrid[0]
+	pGridParameter = float(pGrid[1])
 
-# create a temporary array from the locations of the maximum values of the external xiBig
-temp = np.where(inputData[2] == inputData[2].max())
+	# Extract the distribution for the different rho coordinates
+	f = np.zeros((ext_rho_size,coord_size))
 
-# nP is the number of maximums+1 in extXiBig
-nP = len(temp[0])+1
+	for i in range (0,ext_rho_size):
+	
+		f[i,:] = fBig[0:coord_size]
+	
+		fBig = fBig[coord_size:]
 
-# Check if the dimensions of the external distribution is correct
 
-if len(inputData[0]) != ((nP-1)*nXi+1):
-    raise Exception('The dimensions of the external distribution are incorrect')
-
-# Extract pGridMode, pGridParameter and xiGridMode from grid vectors
-
-# pGridMode
-pGrid = pGridMode.extract(inputData[1], nP)
-pGridMode = pGrid[0]
-pGridParameter = float(pGrid[1])
-
-# xiGridMode
-# TODO find a way to implement a similar method as in pGridMode
+	# xiGridMode
+	# TODO find a way to implement a similar method as in pGridMode
+	
+else:
+	# make arbitrary grid parameters
+	extPMax = 1.072700790414090
+	nP = 175
+	nXi = 35
 
 # Resolution and parameters
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
@@ -131,30 +138,29 @@ eng.setfield(o, 'conservativeParticleSource',1)
 
 # Setting the parameters to NORSE object
 
-# Set the grid parameters calculated earlier
-eng.setfield(o, 'pGridMode', pGridMode)
-# TODO The grid parameter is not exactly the same as the one which created the external grid. Has to set a limit on the error
-# later.
-eng.setfield(o, 'pGridParameter', pGridParameter)
+if externalSwitch == 1:
+	# Set the grid parameters calculated earlier
+	eng.setfield(o, 'pGridMode', pGridMode)
+	# TODO The grid parameter is not exactly the same as the one which created the external grid. Has to set a limit on the error
+	# later.
+	eng.setfield(o, 'pGridParameter', pGridParameter)
 
-# Before performing the calculation set the initialDistribution property
-# to 4, corresponding to external distribution input
-eng.setfield(o, 'initialDistribution', 4)
+	# Before performing the calculation set the initialDistribution propert, depending on the existence of the external data
+	eng.setfield(o, 'initialDistribution', 4)
 
+else:
+	eng.setfield(o, 'initialDistribution', 0)
+	
 # Run NORSE in silent mode so no information is printed
 eng.setfield(o, 'silent', True)
-
-# Convert the numpy arrays into matlab doubles so the PerformCalculation method can use them
-f1 = matlabDouble.convert(inputData[0])
-extPBig1 = matlabDouble.convert(inputData[1])
-extXiBig1 = matlabDouble.convert(inputData[2])
-
-# Create a matlab structure from the input data given in Matlab doubles
-input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
 
 # Numerical parameters
 # Get the number of rho coordinates
 rho_size = size(coreprof0[0].rho_tor_norm)
+
+if externalSwitch == 1:
+	if ext_rho_size != rho_size:
+		raise Exception('There are different number of rho coordinates in the input CPOs')
 
 # Initialize arrays for physical parameters
 temperature = np.zeros(rho_size)
@@ -165,7 +171,7 @@ B0 = np.zeros(rho_size)
 rhoTor_arr = np.zeros(rho_size)
 E_parallel = np.zeros(rho_size)
 E_critical = np.zeros(rho_size)
-time = readIn.convert(coreprof0[0].time)
+time = coreprof0[0].time
 
 # Define physical constants
 c = 3e8
@@ -175,13 +181,13 @@ e = 1.6e-19
 for i in range(rho_size):
 	
 	# Fill physics arrays with values from CPOs
-	temperature[i] = readIn.convert(coreprof0[0].te.value, i)				# eV
-	density[i] = readIn.convert(coreprof0[0].ne.value, i)					# m^{-3}
-	EHat[i] = EHat_calc.calculate(density[i],CoulombLogarithm.calculate(density[i],temperature [i]),readIn.convert(coreprof0[0].profiles1d.eparallel.value, i))			# E/E_c
-	Z_eff[i] = readIn.convert(coreprof0[0].profiles1d.zeff.value, i)			# Z_eff
-	rhoTor_arr[i] = readIn.convert(coreprof0[0].rho_tor, i)					# m
-	B0[i] = readIn.convert(coreprof0[0].toroid_field.b0)					# T
-	E_parallel[i] = readIn.convert(coreprof0[0].profiles1d.eparallel.value, i)		# V/m
+	temperature[i] = coreprof0[0].te.value[0]						# eV
+	density[i] = coreprof0[0].ne.value[0]						# m^{-3}
+	EHat[i] = EHat_calc.calculate(density[i],CoulombLogarithm.calculate(density[i],temperature[i]), coreprof0[0].profiles1d.eparallel.value[0])					# E/E_c	
+	Z_eff[i] = coreprof0[0].profiles1d.zeff.value[0]					# Z_eff
+	rhoTor_arr[i] = coreprof0[0].rho_tor[0]						# m
+	B0[i] = coreprof0[0].toroid_field.b0						# T
+	E_parallel[i] = coreprof0[0].profiles1d.eparallel.value[0]				# V/m
 	E_critical[i] = E_parallel[i]/EHat[i]
 
 # Initialize variables for storing calculation results
@@ -197,13 +203,27 @@ Distribution = np.zeros((1,rho_size,(nP-1)*nXi+1))
 PBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 XiBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 
+
 for i in range (rho_size):
 
 	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
 	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(temperature[i]), float(density[i]), float(Z_eff[i]), float(EHat[i]), float(B0[i]), nargout=0)
+	
+	if externalSwitch == 1:
+		# Convert the numpy arrays into matlab doubles so the PerformCalculation method can use them
+		f1 = matlabDouble.convert(f[i,:])
+		extPBig1 = matlabDouble.convert(extPBig)
+		extXiBig1 = matlabDouble.convert(extXiBig)
+		
 
-	# Perform calculation
-	eng.PerformCalculation(o, input_structure, nargout=0)
+		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
+		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
+
+		# Perform calculation
+		eng.PerformCalculation(o, input_structure, nargout=0)
+		
+	else:
+		eng.PerformCalculation(o, nargout=0)
 
 	# Take the data from the NORSE object, which will go into the CPO.
 	distribution = np.array(eng.extractDistribution(o)).tolist()
@@ -259,8 +279,6 @@ distribution0 = ual.distribution.distributionArray()
 
 # Set numerical parameters for CPO writing
 nCoord = 3	# number of different coordinates used (p, xi, rho_tor)
-timeIn = 0	# TODO input time (will be taken from input CPO)
-dt = 0.001	# TODO time step (will be taken from workflow parameter) (not sure if this will be added, the input time might already 		contain the time step for ETS)
 
 # initialize the CPO
 distribution0.resize(1)
@@ -297,7 +315,7 @@ distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar.resi
 distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:] = totalDistribution
 		
 # Write the time
-distribution0.array[0].time = timeIn + dt
+distribution0.array[0].time = time
 
 # Reshape data for hdf5 writing
 temperature = temperature.reshape(1,rho_size)
@@ -308,7 +326,7 @@ B0 = B0.reshape(1,rho_size)
 rhoTor = rhoTor_arr.reshape(1,rho_size)
 E_parallel = E_parallel.reshape(1,rho_size)
 E_critical = E_critical.reshape(1,rho_size)
-time = time.reshape(1,1)
+time = np.array(time).reshape(1,1)
 growth_rate = np.array(growth_rate).reshape(1,rho_size)
 runaway_density = np.array(runaway_density).reshape(1,rho_size)
 runaway_current = np.array(runaway_current).reshape(1,rho_size)
