@@ -35,9 +35,6 @@ try:
 	extXiBig = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].grid.spaces[1].objects[0].geo[:,0,0,0]
 	ext_rho_tor = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].grid.spaces[2].objects[0].geo[:,0,0,0]
 	
-	print(extXiBig)
-	print('________________________________________________________________')
-	
 	externalSwitch = 1
 	
 except IndexError:
@@ -69,8 +66,6 @@ if externalSwitch == 1:
 
 	# Define the variable (nP-1)*nXi+1
 	coord_size = (nP-1)*nXi+1
-	
-	print(extPMax)
 
 	# Check if the dimensions of the external distribution is correct
 	if len(fBig)/ext_rho_size != coord_size:
@@ -130,7 +125,7 @@ eng = matlab.engine.start_matlab()
 # Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
 
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/git/NORSE_hoppe/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
 eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/NORSE_actor')
 
 # Initialize an empty NORSE object
@@ -229,7 +224,6 @@ for i in range (rho_size):
 		extPBig1 = matlabDouble.convert(extPBig)
 		extXiBig1 = matlabDouble.convert(extXiBig)
 		
-
 		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
 		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
 
