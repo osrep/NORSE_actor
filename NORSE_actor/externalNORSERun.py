@@ -30,10 +30,10 @@ import copy
 
 # Test input distribution
 try:
-	fBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].values.scalar[:]
-	extPBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[0].objects[0].geo[:,0,0,0]
-	extXiBig = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[1].objects[0].geo[:,0,0,0]
-	ext_rho_tor = distribution0.array[0].distri_vec[0].dist_func.f_expansion[0].grid.spaces[2].objects[0].geo[:,0,0,0]
+	fBig = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].values.scalar[:]
+	extPBig = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].grid.spaces[0].objects[0].geo[:,0,0,0]
+	extXiBig = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].grid.spaces[1].objects[0].geo[:,0,0,0]
+	ext_rho_tor = distribution0.array[0].distri_vec[1].dist_func.f_expansion[0].grid.spaces[2].objects[0].geo[:,0,0,0]
 	
 	externalSwitch = 1
 	
@@ -61,7 +61,8 @@ if externalSwitch == 1:
 	temp = np.where(extXiBig == extXiBig.max())
 
 	# nP is the number of maximums+1 in extXiBig
-	nP = len(temp[0])+1
+	#nP = len(temp[0])+1
+	nP = (len(fBig)-1)/nXi + 1 # TODO temporary solution for nP calculation
 
 	# Define the variable (nP-1)*nXi+1
 	coord_size = (nP-1)*nXi+1
@@ -92,9 +93,9 @@ if externalSwitch == 1:
 	
 else:
 	# make arbitrary grid parameters
-	extPMax = 1.072700790414090
-	nP = 175
-	nXi = 35
+	extPMax = 20
+	nP = 1000
+	nXi = 65
 
 # Resolution and parameters
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
@@ -107,10 +108,11 @@ else:
 # nXi = 35       #             -- || --
 # yMax = 14      # Thermal momenta (gamma v/v_th); Don't need this as time dependent parameters are excluded
 pMax = float(extPMax)
-nL = 7
-dt = 9e-5
-tMax = 0.018
-nSaveSteps = 30  # 0, save the distribution at all timesteps
+nL = 15
+t_in = parameters["dt_in"]
+
+
+nSaveSteps = 160  # 0, save the distribution at all timesteps
 
 # Set up NORSE
 
@@ -123,7 +125,7 @@ eng = matlab.engine.start_matlab()
 # Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
 
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/git/NORSE_hoppe/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
 eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/NORSE_actor')
 
 # Initialize an empty NORSE object
@@ -135,6 +137,8 @@ eng.setfield(o, 'includeHeatSink', 1)			# TODO we will use something different i
 eng.setfield(o, 'enforceStrictHeatConservation', 1)
 eng.setfield(o, 'show1DTimeEvolution', 0)
 eng.setfield(o, 'conservativeParticleSource',1)
+eng.setfield(o, 'runawayRegionMode',0)
+eng.setfield(o, 'timeAdvanceMode',0)
 
 # Setting the parameters to NORSE object
 
@@ -176,6 +180,7 @@ time = coreprof0[0].time
 # Define physical constants
 c = 3e8
 e = 1.6e-19
+m = 9.1e-31
 
 # Constant physical parameters
 for i in range(rho_size):
@@ -203,8 +208,12 @@ Distribution = np.zeros((1,rho_size,(nP-1)*nXi+1))
 PBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 XiBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 
-
 for i in range (rho_size):
+	
+	
+	coll_freq = E_critical[i]*e/(m*c)
+	tMax = t_in * coll_freq
+	dt = tMax/160
 
 	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
 	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(temperature[i]), float(density[i]), float(Z_eff[i]), float(EHat[i]), float(B0[i]), nargout=0)
@@ -215,7 +224,6 @@ for i in range (rho_size):
 		extPBig1 = matlabDouble.convert(extPBig)
 		extXiBig1 = matlabDouble.convert(extXiBig)
 		
-
 		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
 		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
 
@@ -318,7 +326,7 @@ distribution0.array[0].distri_vec[0].profiles_1d.state.dens.resize(rho_size)
 distribution0.array[0].distri_vec[0].profiles_1d.state.dens[:] = runaway_density
 		
 distribution0.array[0].distri_vec[0].profiles_1d.state.current.resize(rho_size)
-distribution0.array[0].distri_vec[0].profiles_1d.state.dens[:] = runaway_current
+distribution0.array[0].distri_vec[0].profiles_1d.state.current[:] = runaway_current
 		
 # Write the time
 distribution0.array[0].time = time
