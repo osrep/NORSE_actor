@@ -56,13 +56,13 @@ if externalSwitch == 1:
 
 	# nXi is the number of maximums in extPBig
 	nXi = len(temp[0])
-
+	
 	# create a temporary array from the locations of the maximum values of the external xiBig
 	temp = np.where(extXiBig == extXiBig.max())
 
 	# nP is the number of maximums+1 in extXiBig
 	#nP = len(temp[0])+1
-	nP = (len(fBig)-1)/nXi + 1 # TODO temporary solution for nP calculation
+	nP = (len(fBig)/ext_rho_size -1)/nXi + 1 # TODO temporary solution for nP calculation
 
 	# Define the variable (nP-1)*nXi+1
 	coord_size = (nP-1)*nXi+1
@@ -119,13 +119,8 @@ nSaveSteps = 160  # 0, save the distribution at all timesteps
 # Start a Matlab engine to be able to call Matlab scripts
 eng = matlab.engine.start_matlab()
 
-# Save the location of the  matlab scripts necessary for the run
-# Laptop: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\src'
-# Gateway: '/pfs/work/g2solasz/git/NORSE/src'
-# Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
-
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/ext/NORSE/src')
 eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/NORSE_actor')
 
 # Initialize an empty NORSE object
