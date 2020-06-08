@@ -94,8 +94,8 @@ if externalSwitch == 1:
 else:
 	# make arbitrary grid parameters
 	extPMax = 20
-	nP = 1000
-	nXi = 65
+	nP = 100
+	nXi = 20
 
 # Resolution and parameters
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
@@ -219,8 +219,20 @@ for i in range (rho_size):
 		extPBig1 = matlabDouble.convert(extPBig)
 		extXiBig1 = matlabDouble.convert(extXiBig)
 		
+		# Initialize a Grid object from the external Bigvectors
+		g = eng.Grid();
+		eng.setfield(g, "nP", float(nP))
+		eng.setfield(g, "nXi", float(nXi))
+		eng.setfield(g, "pGridMode", pGridMode)
+		eng.setfield(g, "xiGridMode", float(1))
+		eng.setfield(g, "pGridParameter", pGridParameter)
+		eng.setfield(g, "pMax", float(extPMax))
+		eng.InitializeGrid(g, nargout = 0)
+		
+		f2D = eng.MapBigVectorToGrid(g, f1);
+		
 		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
-		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
+		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig', g, 'g', f2D, 'f2D')
 
 		# Perform calculation
 		eng.PerformCalculation(o, input_structure, nargout=0)
