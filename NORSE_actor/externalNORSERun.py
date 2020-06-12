@@ -56,13 +56,13 @@ if externalSwitch == 1:
 
 	# nXi is the number of maximums in extPBig
 	nXi = len(temp[0])
-
+	
 	# create a temporary array from the locations of the maximum values of the external xiBig
 	temp = np.where(extXiBig == extXiBig.max())
 
 	# nP is the number of maximums+1 in extXiBig
 	#nP = len(temp[0])+1
-	nP = (len(fBig)-1)/nXi + 1 # TODO temporary solution for nP calculation
+	nP = (len(fBig)/ext_rho_size -1)/nXi + 1 # TODO temporary solution for nP calculation
 
 	# Define the variable (nP-1)*nXi+1
 	coord_size = (nP-1)*nXi+1
@@ -94,8 +94,8 @@ if externalSwitch == 1:
 else:
 	# make arbitrary grid parameters
 	extPMax = 20
-	nP = 1000
-	nXi = 65
+	nP = 100
+	nXi = 20
 
 # Resolution and parameters
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
@@ -119,13 +119,8 @@ nSaveSteps = 160  # 0, save the distribution at all timesteps
 # Start a Matlab engine to be able to call Matlab scripts
 eng = matlab.engine.start_matlab()
 
-# Save the location of the  matlab scripts necessary for the run
-# Laptop: 'D:\\ToDo\\Munka\\NORSE\\NORSE\\src'
-# Gateway: '/pfs/work/g2solasz/git/NORSE/src'
-# Gateway: '/pfs/work/g2solasz/git/NORSE_actor'
-
 # Add the location of NORSE files to the Matlab path
-eng.addpath('/pfs/work/g2solasz/git/NORSE/src')
+eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/ext/NORSE/src')
 eng.addpath('/pfs/work/g2solasz/git/NORSE_actor/NORSE_actor')
 
 # Initialize an empty NORSE object
@@ -224,8 +219,20 @@ for i in range (rho_size):
 		extPBig1 = matlabDouble.convert(extPBig)
 		extXiBig1 = matlabDouble.convert(extXiBig)
 		
+		# Initialize a Grid object from the external Bigvectors
+		g = eng.Grid();
+		eng.setfield(g, "nP", float(nP))
+		eng.setfield(g, "nXi", float(nXi))
+		eng.setfield(g, "pGridMode", pGridMode)
+		eng.setfield(g, "xiGridMode", float(1))
+		eng.setfield(g, "pGridParameter", pGridParameter)
+		eng.setfield(g, "pMax", float(extPMax))
+		eng.InitializeGrid(g, nargout = 0)
+		
+		f2D = eng.MapBigVectorToGrid(g, f1);
+		
 		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
-		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig')
+		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig', g, 'g', f2D, 'f2D')
 
 		# Perform calculation
 		eng.PerformCalculation(o, input_structure, nargout=0)

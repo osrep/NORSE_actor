@@ -1,0 +1,3 @@
+[submodule "ext/NORSE"]
+	path = ext/NORSE
+	url = https://github.com/hoppe93/NORSE.git
