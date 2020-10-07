@@ -2,9 +2,10 @@
 %%% 31/07/2019
 %%% Written by Soma Olasz
 %%% 
-%%% This script is created to extract the distribution function
-%%% from the last time step of a NORSE calculation to Python
-%%% languge.
+%%% This script is created to extract the mask from a 
+%%% NORSE calulcation used to determine the runaway
+%%% region in momentum space.
+%%% 
 %%% 
 %%% 
 %%% 
