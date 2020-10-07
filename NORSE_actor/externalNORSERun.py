@@ -95,7 +95,7 @@ else:
 	# make arbitrary grid parameters
 	extPMax = 20
 	nP = 100
-	nXi = 20
+	nXi = 60
 
 # Resolution and parameters
 # From here, the code will follow the AdvancedNORSERun example file found in the Github project named in the description
@@ -112,7 +112,7 @@ nL = 15
 t_in = parameters["dt_in"]
 
 
-nSaveSteps = 160  # 0, save the distribution at all timesteps
+nSaveSteps = 500  # 0, save the distribution at all timesteps
 
 # Set up NORSE
 
@@ -197,18 +197,21 @@ finalXiBig = []			# data storage for CPOs
 growth_rate = []
 runaway_density = []
 runaway_current = []
+region_mask = []
+region_pcs = []
 
 # Initialize numpy arrays to store distribution and coordinates for hdf5 writing
 Distribution = np.zeros((1,rho_size,(nP-1)*nXi+1))
 PBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 XiBig = np.zeros((1,rho_size,(nP-1)*nXi+1))
 
+
 for i in range (rho_size):
 	
 	
 	coll_freq = E_critical[i]*e/(m*c)
 	tMax = t_in * coll_freq
-	dt = tMax/160
+	dt = tMax/50
 
 	# All the variables must be Python float, so Matlab gets them as double. The calculation doesn't work with integers.
 	eng.SetParameters(o, float(nP), float(nXi), float(nL), float(pMax), float(dt), float(tMax), float(temperature[i]), float(density[i]), float(Z_eff[i]), float(EHat[i]), float(B0[i]), nargout=0)
@@ -229,7 +232,7 @@ for i in range (rho_size):
 		eng.setfield(g, "pMax", float(extPMax))
 		eng.InitializeGrid(g, nargout = 0)
 		
-		f2D = eng.MapBigVectorToGrid(g, f1);
+		f2D = eng.MapBigVectorToGrid(g, f1)
 		
 		# Create a matlab structure from the input data given in Matlab doubles for the given rho coordinate
 		input_structure = eng.createStructure(f1, 'f', extPBig1, 'extPBig', extXiBig1, 'extXiBig', g, 'g', f2D, 'f2D')
@@ -248,6 +251,9 @@ for i in range (rho_size):
 	runawayDensity = density[i]*eng.extractFraction(o)
 	runawayCurrent = runawayDensity * e * c * np.sign(E_parallel[i])
 	
+	regionMask = eng.extractMask(o)
+	regionPcs = eng.extractPcs(o)
+	
 	# flatten the data to python list, so it can be given to the CPO
 	distribution = list(itertools.chain.from_iterable(distribution))
 	pBig = list(itertools.chain.from_iterable(pBig))
@@ -255,7 +261,9 @@ for i in range (rho_size):
 	growth_rate.append(growthRate)
 	runaway_density.append(runawayDensity)
 	runaway_current.append(runawayCurrent)
-	
+	region_mask.append(regionMask)
+	region_pcs.append(regionPcs)
+
 	# Save coordinates from first calculation to write to CPO
 	if i == 0:
 		finalPBig = pBig
@@ -351,6 +359,8 @@ time = np.array(time).reshape(1,1)
 growth_rate = np.array(growth_rate).reshape(1,rho_size)
 runaway_density = np.array(runaway_density).reshape(1,rho_size)
 runaway_current = np.array(runaway_current).reshape(1,rho_size)
+region_mask = np.array(region_mask).reshape(rho_size,(nP-1)*nXi+1)
+region_pcs = np.array(region_pcs).reshape(rho_size,nXi)
 Distribution = np.array([np.transpose(Distribution[0,:,:])])
 PBig = np.array([np.transpose(PBig[0,:,:])])
 XiBig = np.array([np.transpose(XiBig[0,:,:])])
@@ -368,6 +378,8 @@ time = {"Name": 'time', "Data":  time}
 growth_rate = {"Name": 'growth_rate', "Data":  growth_rate}
 runaway_density = {"Name": 'runaway_density', "Data":  runaway_density}
 runaway_current = {"Name": 'runaway_current', "Data":  runaway_current}
+region_mask = {"Name": 'region_mask', "Data": region_mask}
+region_pcs = {"Name": 'region_pcs', "Data": region_pcs}
 Distribution = {"Name": 'Distribution', "Data":  Distribution}
 PBig = {"Name": 'PBig', "Data":  PBig}
 XiBig = {"Name": 'XiBig', "Data":  XiBig}
@@ -375,7 +387,9 @@ XiBig = {"Name": 'XiBig', "Data":  XiBig}
 # Put dictionaries into a list
 hdf5_param_data = [temperature, density, EHat, Z_eff, B0, rhoTor, E_parallel, E_critical, time, growth_rate, runaway_density, runaway_current]
 hdf5_dist_data = [Distribution, PBig, XiBig]
+hdf5_region_data = [region_mask, region_pcs]
 
 # Write data to hdf5 file
 hdf5Write.write_params(shot, run, hdf5_param_data)
 hdf5Write.write_dist(shot, run, hdf5_dist_data)
+hdf5Write.write_RunawayRegion(shot, run, hdf5_region_data)
